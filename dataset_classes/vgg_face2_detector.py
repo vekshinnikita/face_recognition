@@ -1,5 +1,6 @@
 import os
 import json
+from typing import Dict, List
 
 
 import torch
@@ -8,6 +9,7 @@ from PIL import Image
 from torch.utils.data import Dataset
 from torchvision.transforms import v2
 
+from utils.iou import calculate_rectangle_area
 from utils.transform import transform_bbox
 
 
@@ -42,8 +44,8 @@ class VGGFace2DetectorDataset(Dataset):
   def _get_data_list(self, images_path):
     data_list = []
     for path_dir, dir_list, file_list in os.walk(images_path):
-      if path_dir == images_path:
-        continue
+      # if path_dir == images_path:
+      #   continue
 
       for file_path in file_list:
         image_path = os.path.join(path_dir, file_path)
@@ -72,6 +74,24 @@ class VGGFace2DetectorDataset(Dataset):
     relative_label_path = os.path.sep.join(image_path.split(os.path.sep)[-2:]).replace('.jpg', '.json')
     return os.path.join(self.labels_path, relative_label_path)
   
+  def _get_annotation_largest_bbox(self, annotations: List):
+    if len(annotations) == 0:
+      return [0,0,0,0]
+    
+    if len(annotations) == 1:
+      return annotations[0]['bbox']
+    
+    index = 0
+    max_area = 0
+    for idx, annotation in enumerate(annotations):
+      area = calculate_rectangle_area(*annotation['bbox'])
+      if area > max_area:
+        index = idx
+        max_area = area
+    
+    return annotations[index]['bbox']
+    
+  
   def __getitem__(self, index):
     image_path = self.data_list[index]
     
@@ -80,12 +100,13 @@ class VGGFace2DetectorDataset(Dataset):
     with open(label_path, 'r') as f:
       label = json.loads(f.read(), strict=False)
 
-    original_bbox = label['annotations'][0]['bbox'] if label['annotations'] else [0,0,0,0]
+    original_bbox = self._get_annotation_largest_bbox(label['annotations'])
     original_image = Image.open(image_path)
+    confidence = 0 if original_bbox == [0,0,0,0] else 1
     
     new_image, new_bbox = self.transform(original_image, original_bbox)
     
-    return new_image, new_bbox, original_image.size[::-1]
+    return new_image, new_bbox, torch.tensor([confidence], dtype=torch.float32), original_image.size[::-1]
   
   def __len__(self):
     return len(self.data_list)
