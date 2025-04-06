@@ -44,8 +44,8 @@ class VGGFace2DetectorDataset(Dataset):
   def _get_data_list(self, images_path):
     data_list = []
     for path_dir, dir_list, file_list in os.walk(images_path):
-      # if path_dir == images_path:
-      #   continue
+      if path_dir == images_path:
+        continue
 
       for file_path in file_list:
         image_path = os.path.join(path_dir, file_path)
