@@ -37,8 +37,10 @@ class VGGFace2DetectorDataset(Dataset):
 
     
   def _validate_image(self, image_path):
-    label_path = self._get_annotation_path(image_path)
+    if '.jpg' not in image_path:
+      return False
     
+    label_path = self._get_annotation_path(image_path)
     return os.path.exists(label_path)
         
   def _get_data_list(self, images_path):
