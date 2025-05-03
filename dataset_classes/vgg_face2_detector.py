@@ -1,14 +1,17 @@
 import os
 import json
-from typing import Dict, List
+import random
+from typing import Dict, Iterable, List
 
 
+import numpy as np
 import torch
 from PIL import Image
 
 from torch.utils.data import Dataset
 from torchvision.transforms import v2
 
+from augmentation.face_detection import FaceDetectorAugmentation
 from utils.iou import calculate_rectangle_area
 from utils.transform import transform_bbox
 
@@ -31,6 +34,12 @@ class VGGFace2DetectorDataset(Dataset):
     self.labels_path = labels_path
     self.transform_image = transform_image
     self.reverse_transform_image = reverse_transform_image
+    
+    self.augmentation = FaceDetectorAugmentation(
+      rotate_degrees=(-70,70),
+      scale_range=(0.2, 1),
+      translate_range=(-0.4, 0.4),
+    )
 
     self.len_dataset = 0
     self.data_list = self._get_data_list(self.images_path)
@@ -76,12 +85,22 @@ class VGGFace2DetectorDataset(Dataset):
     relative_label_path = os.path.sep.join(image_path.split(os.path.sep)[-2:]).replace('.jpg', '.json')
     return os.path.join(self.labels_path, relative_label_path)
   
-  def _get_annotation_largest_bbox(self, annotations: List):
+  def _make_valid_bbox(self, bbox, height:int, width:int):
+    bbox = np.array(bbox) 
+    
+    bbox[0] = np.clip(bbox[0], 0, width)   # x_min
+    bbox[1] = np.clip(bbox[1], 0, height)  # y_min
+    bbox[2] = np.clip(bbox[2], 0, width)   # x_max
+    bbox[3] = np.clip(bbox[3], 0, height)  # y_max
+    
+    return bbox.tolist()
+  
+  def _get_annotation_largest_bbox(self, annotations: List, height:int, width:int):
     if len(annotations) == 0:
       return [0,0,0,0]
     
     if len(annotations) == 1:
-      return annotations[0]['bbox']
+      return self._make_valid_bbox(annotations[0]['bbox'], height, width)
     
     index = 0
     max_area = 0
@@ -91,7 +110,7 @@ class VGGFace2DetectorDataset(Dataset):
         index = idx
         max_area = area
     
-    return annotations[index]['bbox']
+    return self._make_valid_bbox(annotations[index]['bbox'], height, width)
     
   
   def __getitem__(self, index):
@@ -101,12 +120,19 @@ class VGGFace2DetectorDataset(Dataset):
     
     with open(label_path, 'r') as f:
       label = json.loads(f.read(), strict=False)
-
-    original_bbox = self._get_annotation_largest_bbox(label['annotations'])
+    
     original_image = Image.open(image_path)
+    image_size = original_image.size[::-1]
+    original_bbox = self._get_annotation_largest_bbox(label['annotations'], image_size[0], image_size[1])
+    
     confidence = 0 if original_bbox == [0,0,0,0] else 1
     
-    new_image, new_bbox = self.transform(original_image, original_bbox)
+    augmented_image = original_image
+    augmented_bbox = original_bbox
+    if random.random() < 0.5 and confidence == 1:
+      augmented_image, augmented_bbox = self.augmentation(original_image, original_bbox)
+    
+    new_image, new_bbox = self.transform(augmented_image, augmented_bbox)
     
     return new_image, new_bbox, torch.tensor([confidence], dtype=torch.float32), original_image.size[::-1]
   

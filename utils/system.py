@@ -1,5 +1,6 @@
 import os
 from pathlib import Path 
+import torch
 
 def ensure_directory_exists_os(path_to_file):
     """Проверяет, существует ли директория для сохранения файла, и создает ее при необходимости."""
@@ -52,3 +53,19 @@ def delete_files_with_prefix(folder_path, prefix):
 
     except Exception as e:
         print(f"Произошла общая ошибка: {e}")
+
+def get_last_dirname(dirname):
+    return os.path.basename(os.path.normpath(dirname))
+
+
+def get_available_device():
+    if torch.cuda.is_available():
+        device = torch.device("cuda")
+        print("GPU is available")
+        print("Device name:", torch.cuda.get_device_name(0))
+    else:
+        device = torch.device("cpu")
+        print("GPU is not available, using CPU instead")
+
+    print(f"Using device: {device}")
+    return device

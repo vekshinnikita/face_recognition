@@ -1,10 +1,14 @@
 venv
+venv_yolo
 .vscode
 *.env
 __pycache__
 *.pyc
 .DS_Store
 
-/dataset
+/recognition_dataset
+/decoder_dataset
 /best_models
 dataset.zip
+
+**/runs

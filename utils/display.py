@@ -8,8 +8,11 @@ from matplotlib.patches import Rectangle
 
 def show_image_with_bboxes(
     image: torch.Tensor | Any, 
-    bboxes: torch.Tensor | Any
+    bboxes: torch.Tensor | Any = None
 ):
+    if bboxes is None:
+        bboxes = []
+        
     if isinstance(image, torch.Tensor):
         image = v2.ToPILImage()(image)
     if isinstance(bboxes, torch.Tensor):    

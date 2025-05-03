@@ -1,0 +1,12 @@
+# dataset root dir
+path: /Users/user/Documents/university/Дипломы/Никита/project/decoder_dataset/
+
+# train images (relative to 'path')
+train: images/train 
+
+#val images (relative to 'path')
+val: images/val 
+
+# Classes
+names:
+  0: face
