@@ -54,4 +54,4 @@ class ArcFaceLoss(nn.Module):
         output = (one_hot * phi) + ((1.0 - one_hot) * cosine)
         output *= self.s
 
-        return output
+        return F.cross_entropy(output, label)
