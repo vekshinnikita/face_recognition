@@ -5,7 +5,7 @@ import math
 
 
 class ArcFaceLoss(nn.Module):
-    def __init__(self, in_features, out_features, s=30.0, m=0.50, easy_margin=False):
+    def __init__(self, in_features, out_features, device='cpu', s=30.0, m=0.50, easy_margin=False):
         """
         Инициализация ArcFace Loss.
 
@@ -21,7 +21,7 @@ class ArcFaceLoss(nn.Module):
         self.out_features = out_features
         self.s = s
         self.m = m
-        self.weight = nn.Parameter(torch.FloatTensor(out_features, in_features))
+        self.weight = nn.Parameter(torch.FloatTensor(out_features, in_features)).to(device)
         nn.init.xavier_uniform_(self.weight)  # Инициализация весов
         self.easy_margin = easy_margin
         self.cos_m = math.cos(m)
@@ -54,5 +54,4 @@ class ArcFaceLoss(nn.Module):
         output = (one_hot * phi) + ((1.0 - one_hot) * cosine)
         output *= self.s
 
-        loss = F.cross_entropy(output, label)  # Используем CrossEntropyLoss
-        return loss
+        return output
