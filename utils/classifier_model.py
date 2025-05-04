@@ -3,6 +3,7 @@ import string
 import torch
 from utils.iou import box_iou, iou
 from utils.system import ensure_directory_exists_os
+import torch.nn.functional as F
 
 try:
     from google.colab import files as google_files
@@ -73,7 +74,7 @@ def save_model(
         google_files.download(file_path)
 
 
-def evaluate_recognition_batch(embeddings_batch, labels_batch, threshold=0.5):
+def evaluate_recognition_batch(anchor_embeddings, positive_embeddings, negative_embeddings, threshold=0.7):
     """
     Оценивает модель распознавания лиц для одного батча, вычисляя Accuracy, FAR, FRR.
     Возвращает промежуточные результаты для объединения.
@@ -86,41 +87,30 @@ def evaluate_recognition_batch(embeddings_batch, labels_batch, threshold=0.5):
     Returns:
         dict: Словарь с промежуточными результатами (correct, false_accepts, false_rejects, total_positives, total_negatives).
     """
-    n = len(embeddings_batch)
     correct = 0
     false_accepts = 0
     false_rejects = 0
     total_positives = 0
     total_negatives = 0
 
-    # Вычисление попарных расстояний (косинусное расстояние)
-    distances = 1 - torch.nn.functional.cosine_similarity(embeddings_batch.unsqueeze(1), embeddings_batch.unsqueeze(0), dim=2) # Косинусное расстояние
+    for anchor, positive in zip(anchor_embeddings, positive_embeddings):
+        distance = F.pairwise_distance(anchor, positive)
+        total_positives += 1
+        
+        if distance <= threshold:
+            correct += 1
+        else:
+            false_rejects += 1
+        
+    for anchor, negative in zip(anchor_embeddings, negative_embeddings):
+        distance = F.pairwise_distance(anchor, negative)
+        total_negatives += 1
+        
+        if distance <= threshold:
+            false_accepts += 1
+        else:
+            correct += 1
 
-    # Создание матрицы соответствия (метки одинаковые = 1, разные = 0)
-    ground_truth = labels_batch.unsqueeze(0) == labels_batch.unsqueeze(1)
-
-
-    for i in range(n):
-        for j in range(i + 1, n): # Итерируем только по верхней треугольной матрице
-            distance = distances[i, j].item()
-            same_person = ground_truth[i, j].item()
-
-
-            if same_person:
-                total_positives += 1
-                if distance > threshold:  # Ошибка: расстояние больше порога, но это один и тот же человек
-                    false_rejects += 1
-                    correct += 0 # Явно указываем, что ответ неверный
-                else:
-                    correct += 1 # Явно указываем, что ответ верный
-
-            else:
-                total_negatives += 1
-                if distance <= threshold:  # Ошибка: расстояние меньше или равно порогу, но это разные люди
-                    false_accepts += 1
-                    correct += 0  # Явно указываем, что ответ неверный
-                else:
-                    correct += 1  # Явно указываем, что ответ верный
 
     return {
         "correct": correct,
