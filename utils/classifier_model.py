@@ -90,7 +90,6 @@ def evaluate_recognition_batch(anchor_embeddings, positive_embeddings, negative_
         
     for anchor, negative in zip(anchor_embeddings, negative_embeddings):
         distance = F.pairwise_distance(anchor, negative)
-        total_negatives += 1
         
         if distance <= threshold:
             fp += 1
