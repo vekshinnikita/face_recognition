@@ -75,73 +75,51 @@ def save_model(
 
 
 def evaluate_recognition_batch(anchor_embeddings, positive_embeddings, negative_embeddings, threshold=0.7):
-    """
-    Оценивает модель распознавания лиц для одного батча, вычисляя Accuracy, FAR, FRR.
-    Возвращает промежуточные результаты для объединения.
-
-    Args:
-        embeddings_batch (torch.Tensor): Embedding лиц размера (batch_size, embedding_size).
-        labels_batch (torch.Tensor): Метки классов размера (batch_size).
-        threshold (float): Пороговое значение.
-
-    Returns:
-        dict: Словарь с промежуточными результатами (correct, false_accepts, false_rejects, total_positives, total_negatives).
-    """
-    correct = 0
-    false_accepts = 0
-    false_rejects = 0
-    total_positives = 0
-    total_negatives = 0
+    fp = 0
+    fn = 0
+    tp = 0
+    tn = 0
 
     for anchor, positive in zip(anchor_embeddings, positive_embeddings):
         distance = F.pairwise_distance(anchor, positive)
-        total_positives += 1
         
         if distance <= threshold:
-            correct += 1
+            tp += 1
         else:
-            false_rejects += 1
+            fn += 1
         
     for anchor, negative in zip(anchor_embeddings, negative_embeddings):
         distance = F.pairwise_distance(anchor, negative)
         total_negatives += 1
         
         if distance <= threshold:
-            false_accepts += 1
+            fp += 1
         else:
-            correct += 1
+            tn += 1
 
 
     return {
-        "correct": correct,
-        "false_accepts": false_accepts,
-        "false_rejects": false_rejects,
-        "total_positives": total_positives,
-        "total_negatives": total_negatives,
+        "fp": fp,
+        "fn": fn,
+        "tp": tp,
+        "tn": tn,
     }
 
 
 def aggregate_metrics(batch_results):
-    """
-    Агрегирует результаты оценки по батчам в общие метрики.
+    fp = sum(result["fp"] for result in batch_results)
+    fn = sum(result["fn"] for result in batch_results)
+    tp = sum(result["tp"] for result in batch_results)
+    tn = sum(result["tn"] for result in batch_results)
 
-    Args:
-        batch_results (list): Список словарей с промежуточными результатами для каждого батча.
 
-    Returns:
-        dict: Словарь с общими метриками (accuracy, far, frr).
-    """
-    total_correct = sum(result["correct"] for result in batch_results)
-    total_false_accepts = sum(result["false_accepts"] for result in batch_results)
-    total_false_rejects = sum(result["false_rejects"] for result in batch_results)
-    total_total_positives = sum(result["total_positives"] for result in batch_results)
-    total_total_negatives = sum(result["total_negatives"] for result in batch_results)
-
-    accuracy = total_correct / (total_total_positives + total_total_negatives) if (total_total_positives + total_total_negatives) > 0 else 0
-    far = total_false_accepts / total_total_negatives if total_total_negatives > 0 else 0
-    frr = total_false_rejects / total_total_positives if total_total_positives > 0 else 0
-    precision = total_total_positives / (total_total_positives + total_false_rejects)
-    recall = total_total_positives / (total_total_positives + total_false_accepts)
+    total = (tp + tn + fp + fn)
+    
+    accuracy = (tp + tn) / total
+    far = fp / total
+    frr = fn / total
+    precision = tp / (tp + fp)
+    recall = tp / (tp + fn)
     
     f1 = (2*recall*precision)/(recall+precision)
     
