@@ -29,16 +29,11 @@ class VGGFace2ClassifierDataset(Dataset):
     images_path, 
     labels_path, 
     transform_image=None, 
-    reverse_transform_image=None
   ):
     self.images_path = images_path
     self.labels_path = labels_path
     self.transform_image = transform_image
-    self.reverse_transform_image = reverse_transform_image
-    
-    self.augmentation = FaceClassifierAugmentation(
-      rotate_degrees=(-70,70),
-    )
+  
 
     self.path_by_index, self.lists_map = self._get_lists_map(self.images_path)
 
@@ -136,9 +131,8 @@ class VGGFace2ClassifierDataset(Dataset):
     bbox = self._get_annotation_bbox(label['annotations'], image_size[0], image_size[1])
     
     cropped_image = image.crop(bbox)
-    augmented_image = self.augmentation(cropped_image)
     
-    return self.transform(augmented_image)
+    return self.transform(cropped_image)
     
   def __getitem__(self, index):
     anchor_path = self._get_image_path_by_index(index)

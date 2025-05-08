@@ -140,8 +140,20 @@ def aggregate_metrics(batch_results):
     accuracy = total_correct / (total_total_positives + total_total_negatives) if (total_total_positives + total_total_negatives) > 0 else 0
     far = total_false_accepts / total_total_negatives if total_total_negatives > 0 else 0
     frr = total_false_rejects / total_total_positives if total_total_positives > 0 else 0
+    precision = total_total_positives / (total_total_positives + total_false_rejects)
+    recall = total_total_positives / (total_total_positives + total_false_accepts)
+    
+    f1 = (2*recall*precision)/(recall+precision)
+    
 
-    return {"accuracy": accuracy, "far": far, "frr": frr}
+    return {
+        "accuracy": accuracy, 
+        "far": far, 
+        "frr": frr, 
+        "precision": precision,
+        "recall": recall,
+        "f1": f1
+    }
 
 
 
